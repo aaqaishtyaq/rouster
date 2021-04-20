@@ -44,27 +44,12 @@ func buildImage(suite string) {
 	// and also split on - to /
 	directory := strings.Join(strings.Split(suite, "-"), "/")
 	image_name := strings.Join([]string{ORGANISATION, USER, suite}, "/")
-	// docker_cmd := strings.Join(
-	// 	[]string{
-	// 		"docker",
-	// 		"build",
-	// 		"--rm",
-	// 		"--force-rm",
-	// 		"-t",
-	// 		image_name,
-	// 		directory,
-	// 	}, " ",
-	// )
-
-	// fmt.Printf("Building image %s in Directory: %s \n", image_name, directory)
-	// fmt.Println(docker_cmd)
-
-	opts := dockerutils.DockerBuildOpts{
+	buildopts := dockerutils.DockerBuildOpts{
 		Directory: directory,
 		ImageName: image_name,
 	}
 
-	dockerutils.Build(directory, opts)
+	dockerutils.Build(buildopts)
 }
 
 func main() {
