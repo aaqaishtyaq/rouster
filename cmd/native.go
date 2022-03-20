@@ -10,12 +10,10 @@ import (
 )
 
 func init() {
-	nativeCmd.Flags().StringArrayVarP(&imageTag, "image", "i", []string{""}, "Image to be built")
+	nativeCmd.Flags().StringArrayVarP(&images, "image", "i", []string{""}, "Image to be built")
 	nativeCmd.Flags().Int64P("deadline", "d", 20, "Image build timeout.")
 	rootCmd.AddCommand(nativeCmd)
 }
-
-var imageTag []string
 
 var nativeCmd = &coral.Command{
 	Use:   "native",
@@ -27,15 +25,15 @@ var nativeCmd = &coral.Command{
 }
 
 func nativeCommand(cmd *coral.Command, args []string) {
-	fArgs := len(imageTag)
+	fArgs := len(images)
 
 	if fArgs != 0 {
 		// For empty flagset the len of the slice is still 1
-		if fArgs == 1 && imageTag[0] == "" {
+		if fArgs == 1 && images[0] == "" {
 			log.Fatal("Err... No image provided.")
 		}
 
-		for _, i := range imageTag {
+		for _, i := range images {
 			timeout, err := cmd.Flags().GetInt64("deadline")
 			if err != nil {
 				log.Fatal(err)
