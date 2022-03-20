@@ -1,4 +1,4 @@
-package dockerutils
+package builder
 
 import (
 	"bufio"
@@ -6,45 +6,38 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"time"
+	"log"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 )
 
-type DockerBuildOpts struct {
+// NativeDockerBuildOpts uses docker golang client to build docker images
+// subject to experimental usage
+type NativeDockerBuildOpts struct {
 	Directory string
 	ImageName string
-	ImageTag string
+	ImageTag  string
 }
 
-type ErrorLine struct {
-	Error string `json:"error"`
-	ErrorDetails ErrorDetail `json:"errorDetail"`
-}
-
-type ErrorDetail struct {
-	Message string `json:"message"`
-}
-
-func Build(dockerBuildOptions DockerBuildOpts) {
+// Build docker image
+func (d NativeDockerBuildOpts) Build(ctx *context.Context) {
 	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
 
-	buildContainerImage(cli, dockerBuildOptions)
+	d.buildContainerImage(ctx, cli)
 }
 
-func buildContainerImage(client *client.Client, buildOpts DockerBuildOpts) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*120)
-	defer cancel()
-
+func (d NativeDockerBuildOpts) buildContainerImage(ctx *context.Context, client *client.Client) {
 	// To build a docker image from local files is to compress those
 	// files into tar archive first
-	tar, err := archive.TarWithOptions(buildOpts.Directory, &archive.TarOptions{})
+	l := log.Default()
+	l.Println(d.Directory)
+	tar, err := archive.TarWithOptions(d.Directory, &archive.TarOptions{})
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -52,11 +45,11 @@ func buildContainerImage(client *client.Client, buildOpts DockerBuildOpts) {
 
 	opts := types.ImageBuildOptions{
 		Dockerfile: "Dockerfile",
-		Tags: []string{buildOpts.ImageName},
-		Remove: true,
+		Tags:       []string{d.ImageName},
+		Remove:     true,
 	}
 
-	res, err := client.ImageBuild(ctx, tar, opts)
+	res, err := client.ImageBuild(*ctx, tar, opts)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
