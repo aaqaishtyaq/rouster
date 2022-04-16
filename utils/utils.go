@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 func RunCommand(command string, args []string) error {
@@ -42,15 +43,27 @@ func RunCommand(command string, args []string) error {
 
 	err = cmd.Start()
 	log.Println("Started running shell command")
+
+	fmt.Println("DEBUG-1")
+	fmt.Println(err)
+
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error starting command", err)
 		return err
 	}
 
+	var waitStatus syscall.WaitStatus
 	err = cmd.Wait()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error waiting command", err)
-		return err
+
+	if exitError, ok := err.(*exec.ExitError); ok {
+		waitStatus = exitError.Sys().(syscall.WaitStatus)
+		if waitStatus.ExitStatus() != 0 {
+			fmt.Println("DEBUG")
+			fmt.Println(err)
+			fmt.Fprintln(os.Stderr, "Error waiting command", err)
+			fmt.Println("Error ", err.Error())
+			return err
+		}
 	}
 
 	return nil

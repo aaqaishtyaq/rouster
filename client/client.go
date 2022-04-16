@@ -1,7 +1,6 @@
 package client
 
 import (
-	"log"
 	"strings"
 
 	"github.com/aaqaishtyaq/rouster/builder"
@@ -34,11 +33,10 @@ func NewNative(suite, context string) *builder.NativeDockerBuildOpts {
 }
 
 // NewBuildx returns an instance of Buildx Builder
-func NewBuildx(suite, context string) *builder.BuildxBuildOpts {
-	dir, img := GenerateMetadata(suite, context)
-	return &builder.BuildxBuildOpts{
-		Directory: dir,
-		ImageName: img,
-		Log:       log.Default(),
-	}
+// NewBuildx returns an instance of Buildx Builder
+func NewBuildx(opts *builder.BuildOpts) *builder.BuildOpts {
+	dir, img := GenerateMetadata(opts.Image, opts.Context)
+	opts.Context = dir
+	opts.ImageName = img
+	return opts
 }

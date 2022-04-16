@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/muesli/coral"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -12,15 +12,15 @@ func init() {
 
 var version = "2.0.0"
 
-var versionCmd = &coral.Command{
+var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Version of rouster",
 	Long: `Returns version number of rouster
 	`,
-	Run:  versionCommand,
+	Run: versionCommand,
 }
 
-func versionCommand(cmd *coral.Command, args []string) {
+func versionCommand(cmd *cobra.Command, args []string) {
 	fmt.Println("Rouster version: " + version)
 	fmt.Println("For contribution, Please visit https://github.com/aaqaishtyaq/rouster")
 }
