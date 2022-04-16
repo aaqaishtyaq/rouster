@@ -51,3 +51,9 @@ require (
 	google.golang.org/grpc v1.45.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 )
+
+replace (
+	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.8.1
+	github.com/docker/docker => github.com/docker/docker v20.10.3-0.20211208011758-87521affb077+incompatible // master (v21.xx-dev)
+	github.com/tonistiigi/fsutil => github.com/tonistiigi/fsutil v0.0.0-20220115021204-b19f7f9cb274
+)
