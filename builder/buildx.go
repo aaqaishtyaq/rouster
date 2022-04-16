@@ -18,14 +18,19 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type BuildxBuildOpts struct {
-	Directory string
-	ImageName string
-	ImageTag  string
-	Image     string
-	Platform  string
-	Push      bool
-	Log       *logrus.Logger
+type BuildOpts struct {
+	BuildArgs    []string
+	BuildkitAddr string
+	Context      string
+	File         string
+	Image        string
+	Tag          string
+	Push         bool
+	NoCache      bool
+	Target       string
+	ImageName    string
+	ImageTag     string
+	Platform     string
 }
 
 var (
@@ -33,7 +38,7 @@ var (
 	ociImageBuilder = "docker"
 )
 
-func (d BuildxBuildOpts) Make(ctx context.Context, cmd *cobra.Command) error {
+func (d BuildOpts) Make(ctx context.Context, cmd *cobra.Command) error {
 	bldkitAddr, err := cmd.Flags().GetString("buildkit-addr")
 	if err != nil {
 		return err
@@ -46,7 +51,7 @@ func (d BuildxBuildOpts) Make(ctx context.Context, cmd *cobra.Command) error {
 
 	d.Image = fmt.Sprintf("%s:%s", d.ImageName, d.ImageTag)
 
-	_, pipeW := io.Pipe()
+	pipeR, pipeW := io.Pipe()
 	solveOpt, err := d.newSolveOpt(cmd, pipeW)
 	if err != nil {
 		return err
@@ -75,6 +80,13 @@ func (d BuildxBuildOpts) Make(ctx context.Context, cmd *cobra.Command) error {
 		return err
 	})
 
+	eg.Go(func() error {
+		if err := loadDockerTar(pipeR); err != nil {
+			return err
+		}
+		return pipeR.Close()
+	})
+
 	if err := eg.Wait(); err != nil {
 		return err
 	}
@@ -83,19 +95,9 @@ func (d BuildxBuildOpts) Make(ctx context.Context, cmd *cobra.Command) error {
 	return nil
 }
 
-func (d BuildxBuildOpts) newSolveOpt(cmd *cobra.Command, w io.WriteCloser) (*client.SolveOpt, error) {
-	buildCtx := d.Directory
-	if buildCtx == "" {
-		return nil, errors.New("please specify build context (e.g. \".\" for the current directory)")
-	} else if buildCtx == "-" {
-		return nil, errors.New("stdin not supported yet")
-	}
-
-	file, err := cmd.Flags().GetString("file")
-	if err != nil {
-		return nil, err
-	}
-
+func (d BuildOpts) newSolveOpt(cmd *cobra.Command, w io.WriteCloser) (*client.SolveOpt, error) {
+	buildCtx := d.Context
+	file := d.File
 	if file == "" {
 		file = filepath.Join(buildCtx, "Dockerfile")
 	}
@@ -111,26 +113,17 @@ func (d BuildxBuildOpts) newSolveOpt(cmd *cobra.Command, w io.WriteCloser) (*cli
 		"filename": filepath.Base(file),
 	}
 
-	target, err := cmd.Flags().GetString("target")
-	if err != nil {
-		return nil, err
-	}
+	target := d.Target
 	if target != "" {
 		frontendAttrs["target"] = target
 	}
 
-	noCache, err := cmd.Flags().GetBool("no-cache")
-	if err != nil {
-		return nil, err
-	}
+	noCache := d.NoCache
 	if noCache {
 		frontendAttrs["no-cache"] = ""
 	}
 
-	buildArgs, err := cmd.Flags().GetStringSlice("build-arg")
-	if err != nil {
-		return nil, err
-	}
+	buildArgs := d.BuildArgs
 
 	for _, buildArg := range buildArgs {
 		kv := strings.SplitN(buildArg, "=", 2)
@@ -160,7 +153,7 @@ func (d BuildxBuildOpts) newSolveOpt(cmd *cobra.Command, w io.WriteCloser) (*cli
 
 func loadDockerTar(r io.Reader) error {
 	// no need to use moby/moby/client here
-	cmd := exec.Command("docker", "load")
+	cmd := exec.Command("nerdctl", "load")
 	cmd.Stdin = r
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -168,7 +161,7 @@ func loadDockerTar(r io.Reader) error {
 }
 
 // Build docker image
-func (d BuildxBuildOpts) Build(ctx *context.Context) {
+func (d BuildOpts) Build(ctx *context.Context) {
 	d.Platform = d.FetchPlatformMetadata()
 
 	// d.buildContainerImage(ctx, cli)
@@ -176,45 +169,17 @@ func (d BuildxBuildOpts) Build(ctx *context.Context) {
 	// err := utils.RunCommand(ociImageBuilder, buildCommand)
 }
 
-// func (d BuildxBuildOpts) buildContainerImage(ctx *context.Context, client *client.Client) {
-// 	// To build a docker image from local files is to compress those
-// 	// files into tar archive first
-// 	l := log.Default()
-// 	l.Println(d.Directory)
-// 	tar, err := archive.TarWithOptions(d.Directory, &archive.TarOptions{})
-// 	if err != nil {
-// 		fmt.Println(err.Error())
-// 		return
-// 	}
-
-// 	opts := types.ImageBuildOptions{
-// 		Dockerfile: "Dockerfile",
-// 		Tags:       []string{d.ImageName},
-// 		Remove:     true,
-// 		Platform:   d.Platform,
-// 	}
-
-// 	res, err := client.ImageBuild(*ctx, tar, opts)
-// 	if err != nil {
-// 		fmt.Println(err.Error())
-// 		return
-// 	}
-
-// 	defer res.Body.Close()
-
-// 	printResponse(res.Body)
-// }
 
 // FetchPlatformMetadata reads `platform` file in Dockerfile context to figure out multi-arch builds
-func (d BuildxBuildOpts) FetchPlatformMetadata() string {
-	platformFilePath := strings.Join([]string{d.Directory, PlatformFile}, "/")
+func (d BuildOpts) FetchPlatformMetadata() string {
+	platformFilePath := strings.Join([]string{d.Context, PlatformFile}, "/")
 	if _, err := os.Stat(platformFilePath); errors.Is(err, os.ErrNotExist) {
 		return ""
 	}
 
 	dat, err := os.ReadFile(platformFilePath)
 	if err != nil {
-		d.Log.Println(err)
+		// d.Log.Println(err)
 		return ""
 	}
 
@@ -232,7 +197,7 @@ func (d BuildxBuildOpts) FetchPlatformMetadata() string {
 }
 
 // DockerBuildCommand returns command to be used for docker build
-// func (d BuildxBuildOpts) DockerBuildCommandArgs() []string {
+// func (d BuildOpts) DockerBuildCommandArgs() []string {
 // 	var platformCmd string
 // 	var loadFlag string
 
