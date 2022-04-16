@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/aaqaishtyaq/rouster/client"
-	"github.com/muesli/coral"
+	"github.com/spf13/cobra"
 )
 
 func init() {
@@ -15,16 +15,16 @@ func init() {
 	rootCmd.AddCommand(nativeCmd)
 }
 
-var nativeCmd = &coral.Command{
+var nativeCmd = &cobra.Command{
 	Use:   "native",
 	Short: "Native builder for docker image build",
 	Long: `Native builder for docker image builds.
 	Does not support image push.`,
 	Run:  nativeCommand,
-	Args: coral.MinimumNArgs(1),
+	Args: cobra.MinimumNArgs(1),
 }
 
-func nativeCommand(cmd *coral.Command, args []string) {
+func nativeCommand(cmd *cobra.Command, args []string) {
 	fArgs := len(images)
 
 	if fArgs != 0 {

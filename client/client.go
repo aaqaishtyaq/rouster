@@ -1,10 +1,10 @@
 package client
 
 import (
-	"log"
 	"strings"
 
 	"github.com/aaqaishtyaq/rouster/builder"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -39,6 +39,6 @@ func NewBuildx(suite, context string) *builder.BuildxBuildOpts {
 	return &builder.BuildxBuildOpts{
 		Directory: dir,
 		ImageName: img,
-		Log:       log.Default(),
+		Log:       logrus.New(),
 	}
 }
